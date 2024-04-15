@@ -133,6 +133,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     }
 
 
+    @Override
+    public Result logout() {
+        UserHolder.removeUser();
+        return Result.ok();
+    }
+
     /**
      * 通过手机号创建用户
      * @param phone
@@ -146,4 +152,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         log.info("通过手机号新创建的用户为:{}",user);
         return user;
     }
+
+
 }
