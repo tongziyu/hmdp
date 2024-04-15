@@ -1,18 +1,19 @@
 package com.hmdp.interceptor;
 
+import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.util.StrUtil;
 import com.hmdp.dto.UserDTO;
-import com.hmdp.entity.User;
+import com.hmdp.utils.RedisConstants;
 import com.hmdp.utils.UserHolder;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.interceptor.BeanFactoryTransactionAttributeSourceAdvisor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.servlet.HandlerInterceptor;
 
-import javax.annotation.processing.SupportedSourceVersion;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @Description:
@@ -21,24 +22,20 @@ import javax.servlet.http.HttpSession;
  */
 @Slf4j
 public class LoginInterceptor implements HandlerInterceptor {
+    private StringRedisTemplate stringRedisTemplate;
+
+    public LoginInterceptor(StringRedisTemplate stringRedisTemplate) {
+        this.stringRedisTemplate = stringRedisTemplate;
+    }
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        // 1.获取session
-        HttpSession session = request.getSession();
-
-        // 2.判断用户是否存在
-        Object user = session.getAttribute("user");
-
-        // 3.用户不存在直接拦截
-        if (user == null){
-            response.setStatus(401);
-            return false;
-        }
-
-        log.info("拦截器的userDTO: {}",user);
-        UserHolder.saveUser((UserDTO) user);
-        log.info("已经放行!!!!!!!!!");
-        // 放行
-        return true;
+       if (UserHolder.getUser() == null){
+           response.setStatus(401);
+           return false;
+       }
+       return true;
     }
+
+
 }

@@ -1,5 +1,8 @@
 package com.hmdp.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.bean.copier.CopyOptions;
+import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.RandomUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.dto.LoginFormDTO;
@@ -8,13 +11,21 @@ import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.User;
 import com.hmdp.mapper.UserMapper;
 import com.hmdp.service.IUserService;
+import com.hmdp.utils.RedisConstants;
 import com.hmdp.utils.RegexUtils;
 import com.hmdp.utils.SystemConstants;
+import com.hmdp.utils.UserHolder;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.ibatis.ognl.Token;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import javax.servlet.http.HttpSession;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -27,6 +38,9 @@ import javax.servlet.http.HttpSession;
 @Service
 @Slf4j
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IUserService {
+
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
 
     /**
      * 发送验证码
@@ -48,7 +62,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         // 3.如果手机号正确则生成验证码,发送验证码
         String code = RandomUtil.randomNumbers(6);
         log.info("系统生成的验证码:{}",code);
-        // 4.将验证码保存进session
+
+        // 4.将验证码保存进Redis
+        stringRedisTemplate.opsForValue().set(RedisConstants.LOGIN_CODE_KEY + phone,code,RedisConstants.LOGIN_CODE_TTL, TimeUnit.MINUTES);
         session.setAttribute("code",code);
 
         // 5.发送验证码
@@ -72,7 +88,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
         // 2.校验验证码
         String PreCode = loginForm.getCode();
-        Object code = session.getAttribute("code");
+
+        // 从redis中获取验证码
+        String code = stringRedisTemplate.opsForValue().get(RedisConstants.LOGIN_CODE_KEY + loginForm.getPhone());
 
         if (code == null || !PreCode.equals(code)){
             return Result.fail("验证码不正确!");
@@ -88,15 +106,30 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             user = createUserWithPhone(loginForm.getPhone());
         }
 
-        // 5.如果存在则保存进session
+        // 5.将用户保存进redis中
+
+        // 生成UUID 简洁版
+        String token = UUID.randomUUID().toString(true);
+
+        log.info("生成的UUID为:{}",token);
+
         UserDTO userDTO = new UserDTO();
         BeanUtils.copyProperties(user,userDTO);
+        // 将对象转换成HashMap,存入Redis中 以Hash的数据类型存入
+        Map<String, Object> userHashMap = BeanUtil.beanToMap(userDTO, new HashMap<>(),
+                CopyOptions.create()
+                        .setIgnoreNullValue(true)
+                        .setFieldValueEditor((fieldName, fieldValue) -> fieldValue.toString()));
 
-        session.setAttribute("user",userDTO);
+        // 将user存入redis
+        stringRedisTemplate.opsForHash().putAll(RedisConstants.LOGIN_USER_KEY + token,userHashMap);
 
-        // 6.返回成功结果
+        // 设置过期时间为30分钟
+        stringRedisTemplate.expire(RedisConstants.LOGIN_USER_KEY + token,RedisConstants.CACHE_SHOP_TTL,TimeUnit.MINUTES);
 
-        return Result.ok();
+
+        // 6.返回成功结果, 并将token返回只有这样前端每次访问 才能携带token
+        return Result.ok(token);
     }
 
 
