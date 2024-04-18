@@ -28,5 +28,17 @@ public interface IShopService extends IService<Shop> {
      */
     Result updateShop(Shop shop);
 
+    /**
+     * 互斥锁
+     * @param id
+     * @return
+     */
     Result queryShopWithMutex(Long id);
+
+    /**
+     * 逻辑过期
+     * @param id
+     * @return
+     */
+    Result queryShopLogicalExpire(Long id);
 }
