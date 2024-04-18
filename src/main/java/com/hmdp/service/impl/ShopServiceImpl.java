@@ -2,6 +2,7 @@ package com.hmdp.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.io.resource.StringResource;
+import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
@@ -72,6 +73,63 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
     }
 
     /**
+     * 实现互斥锁,防止内存击穿
+     * @return
+     */
+    @Override
+    public Result queryShopWithMutex(Long id){
+        /*
+         * 防止内存击穿,使用互斥锁
+         */
+        // 1.现从redis中查询数据
+        String key = RedisConstants.CACHE_SHOP_KEY + id;
+
+        String jsonShopObject = stringRedisTemplate.opsForValue().get(key);
+
+        // 2.判断是否为空
+        if (StrUtil.isNotBlank(jsonShopObject)){
+            // 3.将json数据转换成Java对象
+            Shop shop = JSONUtil.toBean(jsonShopObject, Shop.class);
+
+            return Result.ok(shop);
+        }
+        String lock = "lock:shop:" + id;
+        try {
+            // 4. 如果数据库中没有则去拿互斥锁
+            // 4.1 如果拿不到互斥锁,就继续拿
+
+            Boolean isBoolean = tryLock(lock);
+
+            if (!BooleanUtil.isTrue(isBoolean)){
+                // 拿不到互斥锁,休眠一下,继续拿
+                Thread.sleep(50);
+                return queryShopWithMutex(id);
+            }
+
+            // 4.2 拿到互斥锁了,进数据库查询数据后重设缓存
+            Shop shop = shopMapper.selectById(id);
+
+            // 4.3 查询的数据为null,则表示没有这个商铺
+            if (shop == null){
+                return Result.fail("商铺不存在");
+            }
+
+            // 4.4 重设缓存
+            stringRedisTemplate.opsForValue().set(key,JSONUtil.toJsonStr(shop),RedisConstants.CACHE_SHOP_TTL,TimeUnit.MINUTES);
+
+
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }finally {
+
+            // 4.5 释放锁
+            unLock(lock);
+        }
+
+        return null;
+    }
+
+    /**
      * 更新商铺,
      * 数据更新策略:
      *  - 数据库如果更新,先对其数据库进行更新
@@ -99,5 +157,24 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         stringRedisTemplate.delete(key);
 
         return Result.ok();
+    }
+
+
+    /**
+     * 获取互斥锁
+     * @param lock
+     * @return
+     */
+    private Boolean tryLock(String lock){
+        Boolean aBoolean = stringRedisTemplate.opsForValue().setIfAbsent(lock, "1", 10, TimeUnit.SECONDS);
+        return BooleanUtil.isTrue(aBoolean);
+    }
+
+    /**
+     * 释放互斥锁
+     * @param lock
+     */
+    private void unLock(String lock){
+        stringRedisTemplate.delete(lock);
     }
 }

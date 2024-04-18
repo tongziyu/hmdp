@@ -27,4 +27,6 @@ public interface IShopService extends IService<Shop> {
      * @return
      */
     Result updateShop(Shop shop);
+
+    Result queryShopWithMutex(Long id);
 }
