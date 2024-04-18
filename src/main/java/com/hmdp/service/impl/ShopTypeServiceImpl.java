@@ -26,13 +26,13 @@ import java.util.concurrent.TimeUnit;
  * @since 2024年04月15日23:22:26
  */
 @Service
-public class ShopTypeServiceImpl extends ServiceImpl<ShopTypeMapper, ShopType> implements IShopTypeService {
+    public class ShopTypeServiceImpl extends ServiceImpl<ShopTypeMapper, ShopType> implements IShopTypeService {
 
-    @Autowired
-    private ShopTypeMapper shopTypeMapper;
+        @Autowired
+        private ShopTypeMapper shopTypeMapper;
 
-    @Autowired
-    private StringRedisTemplate stringRedisTemplate;
+        @Autowired
+        private StringRedisTemplate stringRedisTemplate;
 
     /**
      * 查询所有商店类型[加缓存]
@@ -60,7 +60,7 @@ public class ShopTypeServiceImpl extends ServiceImpl<ShopTypeMapper, ShopType> i
         // 4.将查询出来的数据保存进缓存里
         stringRedisTemplate.opsForValue().set(key,JSONUtil.toJsonStr(shopTypes));
 
-        // 设置缓存过期时间
+        // 设置缓存过期时间 + 设置过期时间+随机值,防止缓存雪崩
         stringRedisTemplate.expire(key,60+ RandomUtil.randomInt(1,5), TimeUnit.MINUTES);
 
         return Result.ok(shopTypes);

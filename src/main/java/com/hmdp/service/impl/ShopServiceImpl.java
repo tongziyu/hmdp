@@ -70,4 +70,34 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
 
         return Result.ok(DBShop);
     }
+
+    /**
+     * 更新商铺,
+     * 数据更新策略:
+     *  - 数据库如果更新,先对其数据库进行更新
+     *  - 然后将缓存中的数据删掉
+     *
+     *  双写一致,但是没有用到 延迟双删
+     *
+     * @param shop
+     * @return
+     */
+    @Override
+    public Result updateShop(Shop shop) {
+        Long id = shop.getId();
+
+        if (id == null){
+            return Result.fail("商铺id不能为空");
+        }
+
+        // 修改对应的商铺id
+        int i = shopMapper.updateById(shop);
+
+        // 删除缓存中商铺id
+        String key = RedisConstants.CACHE_SHOP_KEY + id;
+
+        stringRedisTemplate.delete(key);
+
+        return Result.ok();
+    }
 }
