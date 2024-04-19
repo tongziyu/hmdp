@@ -123,7 +123,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
             // 4.4 重设缓存
             stringRedisTemplate.opsForValue().set(key,JSONUtil.toJsonStr(shop),RedisConstants.CACHE_SHOP_TTL,TimeUnit.MINUTES);
 
-
+            return Result.ok(shop);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }finally {
@@ -132,7 +132,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
             unLock(lock);
         }
 
-        return null;
+        //return Result.ok();
     }
 
     /**

@@ -36,7 +36,9 @@ public class ShopController {
     @GetMapping("/{id}")
     public Result queryShopById(@PathVariable("id") Long id) {
         log.info("当前线程: "+Thread.currentThread().getName());
-        return shopService.queryShopLogicalExpire(id);
+
+        //return shopService.queryShopLogicalExpire(id);
+        return shopService.queryShopWithMutex(id);
     }
 
     /**
