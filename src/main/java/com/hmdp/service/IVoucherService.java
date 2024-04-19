@@ -17,4 +17,11 @@ public interface IVoucherService extends IService<Voucher> {
     Result queryVoucherOfShop(Long shopId);
 
     void addSeckillVoucher(Voucher voucher);
+
+    /**
+     * 抢购优惠券
+     * @param voucherId
+     * @return
+     */
+    Result seckillVoucher(Long voucherId);
 }
