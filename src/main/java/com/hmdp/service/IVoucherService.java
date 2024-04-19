@@ -24,4 +24,11 @@ public interface IVoucherService extends IService<Voucher> {
      * @return
      */
     Result seckillVoucher(Long voucherId);
+
+    /**
+     * 抢购优惠券[乐观锁]
+     * @param voucherId
+     * @return
+     */
+    public Result seckillVoucherOptimisticLock(Long voucherId);
 }
