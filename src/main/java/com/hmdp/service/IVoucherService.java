@@ -3,6 +3,7 @@ package com.hmdp.service;
 import com.hmdp.dto.Result;
 import com.hmdp.entity.Voucher;
 import com.baomidou.mybatisplus.extension.service.IService;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * <p>
@@ -31,4 +32,19 @@ public interface IVoucherService extends IService<Voucher> {
      * @return
      */
     public Result seckillVoucherOptimisticLock(Long voucherId);
+
+    /**
+     * 抢购优惠券 悲观锁
+     * @param voucherId
+     * @return
+     */
+    Result seckillVoucherPessimisticLock(Long voucherId);
+
+    /**
+     * 创建优惠券订单
+     * @param voucherId
+     * @return
+     */
+    @Transactional
+    public Result createVoucherOrder(Long voucherId);
 }
