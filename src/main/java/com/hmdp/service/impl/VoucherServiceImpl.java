@@ -178,7 +178,9 @@ public class VoucherServiceImpl extends ServiceImpl<VoucherMapper, Voucher> impl
         boolean update = seckillVoucherService.update()
                 .setSql("stock = stock - 1")
                 .eq("voucher_id", seckillVoucher.getVoucherId())
-                .eq("stock", seckillVoucher.getStock()).update();
+                // where id = id and stock > 0 在进行减扣库存,大大提高了项目的可行性
+                .gt("stock", 0).update();
+
 
         if (!update){
             return Result.fail("库存不足!");
