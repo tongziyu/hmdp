@@ -1,10 +1,9 @@
 package com.hmdp.service;
 
+import com.baomidou.mybatisplus.extension.service.IService;
 import com.hmdp.dto.Result;
 import com.hmdp.entity.SeckillVoucher;
-import com.baomidou.mybatisplus.extension.service.IService;
-import com.hmdp.entity.Voucher;
-import com.hmdp.utils.RedisConstants;
+import com.hmdp.entity.VoucherOrder;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -29,7 +28,7 @@ public interface ISeckillVoucherService extends IService<SeckillVoucher> {
      * @param voucherId
      * @return
      */
-    public Result seckillVoucherOptimisticLock(Long voucherId);
+    Result seckillVoucherOptimisticLock(Long voucherId);
 
     /**
      * 抢购优惠券 悲观锁
@@ -44,14 +43,33 @@ public interface ISeckillVoucherService extends IService<SeckillVoucher> {
      * @return
      */
     @Transactional
-    public Result createVoucherOrder(Long voucherId);
+    Result createVoucherOrder(Long voucherId);
 
     /**
      * redis分布式锁
      * @param voucherId
      * @return
      */
-    public Result seckillVoucherRedisLock(Long voucherId) throws InterruptedException;
+    Result seckillVoucherRedisLock(Long voucherId) throws InterruptedException;
 
+    /**
+     * 抢购优惠券,[分布式锁版本] 使用lua脚本优化操作,减少数据库查询操作,提高接口效率
+     * @param voucherId
+     * @return
+     */
+    Result seckillVoucherRedisLock2(Long voucherId) throws InterruptedException;
+
+    /**
+     * 创建优惠券订单
+     * @return
+     */
+    void createVoucherOrderAsy(VoucherOrder voucherOrder);
+
+
+    /**
+     * 处理下单的方法
+     * @param voucherOrder
+     */
+    void handlerVoucherOrder(VoucherOrder voucherOrder);
 
 }

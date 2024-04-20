@@ -1,10 +1,10 @@
 package com.hmdp.utils;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -22,15 +22,13 @@ public class RedisIdWorker {
      */
     private static final long BEGIN_TIMESTAMP  = 1640995200L;
 
-    @Autowired
+    @Resource
     private  StringRedisTemplate stringRedisTemplate;
 
     /**
      * 序列号位数
      */
     private static final int COUNT_BITS = 32;
-
-
 
     public long nextId(String keyPrefix){
         // 1.生成时间戳
