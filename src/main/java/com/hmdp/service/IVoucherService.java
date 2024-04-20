@@ -53,5 +53,5 @@ public interface IVoucherService extends IService<Voucher> {
      * @param voucherId
      * @return
      */
-    public Result seckillVoucherRedisLock(Long voucherId);
+    public Result seckillVoucherRedisLock(Long voucherId) throws InterruptedException;
 }

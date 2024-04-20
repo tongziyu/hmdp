@@ -14,6 +14,8 @@ import com.hmdp.service.IVoucherService;
 import com.hmdp.utils.RedisIdWorker;
 import com.hmdp.utils.SimpleRedisLock;
 import com.hmdp.utils.UserHolder;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -23,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UnknownFormatConversionException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -47,6 +51,9 @@ public class VoucherServiceImpl extends ServiceImpl<VoucherMapper, Voucher> impl
 
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
+
+    @Autowired
+    private RedissonClient redissonClient;
 
     private static final Object lock = new Object();
 
@@ -314,7 +321,7 @@ public class VoucherServiceImpl extends ServiceImpl<VoucherMapper, Voucher> impl
      * @return
      */
     @Override
-    public Result seckillVoucherRedisLock(Long voucherId) {
+    public Result seckillVoucherRedisLock(Long voucherId) throws InterruptedException {
         // 1.查询优惠卷信息
         SeckillVoucher seckillVoucher = seckillVoucherMapper.selectById(voucherId);
 
@@ -348,10 +355,17 @@ public class VoucherServiceImpl extends ServiceImpl<VoucherMapper, Voucher> impl
         }
         // 解决一人一单超卖问题
         Long id = UserHolder.getUser().getId();
-        // 创建分布式锁对象
-        SimpleRedisLock simpleRedisLock = new SimpleRedisLock("order:"+id,stringRedisTemplate);
+        // 使用Redisson 实现分布式锁
+        RLock redissonClientLock = redissonClient.getLock("lock:order:" + id);
 
-        boolean success = simpleRedisLock.tryLock(20);
+        // 第一个参数:重试时间  第二个参数:key的TTL  第三个参数:时间单位
+        boolean success = redissonClientLock.tryLock(1, 10, TimeUnit.SECONDS);
+
+
+        // 创建分布式锁对象
+        // SimpleRedisLock simpleRedisLock = new SimpleRedisLock("order:"+id,stringRedisTemplate);
+        //boolean success = simpleRedisLock.tryLock(20);
+
         if (!success){
             return Result.fail("不能重复下单");
         }
@@ -363,7 +377,7 @@ public class VoucherServiceImpl extends ServiceImpl<VoucherMapper, Voucher> impl
             return proxy.createVoucherOrder(voucherId);
         }finally {
             // 释放锁
-            simpleRedisLock.unLock();
+            redissonClientLock.unlock();
         }
     }
 }
