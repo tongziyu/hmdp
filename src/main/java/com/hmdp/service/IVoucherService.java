@@ -47,4 +47,11 @@ public interface IVoucherService extends IService<Voucher> {
      */
     @Transactional
     public Result createVoucherOrder(Long voucherId);
+
+    /**
+     * redis分布式锁
+     * @param voucherId
+     * @return
+     */
+    public Result seckillVoucherRedisLock(Long voucherId);
 }
