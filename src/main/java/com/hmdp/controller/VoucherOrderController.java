@@ -2,6 +2,7 @@ package com.hmdp.controller;
 
 
 import com.hmdp.dto.Result;
+import com.hmdp.service.ISeckillVoucherService;
 import com.hmdp.service.IVoucherService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,6 +25,9 @@ public class VoucherOrderController {
     @Autowired
     private IVoucherService voucherService;
 
+    @Autowired
+    private ISeckillVoucherService seckillVoucherService;
+
     /**
      * 优惠券秒杀订单
      * @param voucherId
@@ -32,6 +36,7 @@ public class VoucherOrderController {
     @PostMapping("seckill/{id}")
     public Result seckillVoucher(@PathVariable("id") Long voucherId) throws InterruptedException {
 
-        return voucherService.seckillVoucherRedisLock(voucherId);
+       // return voucherService.seckillVoucherRedisLock(voucherId);
+        return seckillVoucherService.seckillVoucherRedisLock(voucherId);
     }
 }

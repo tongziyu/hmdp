@@ -19,39 +19,4 @@ public interface IVoucherService extends IService<Voucher> {
 
     void addSeckillVoucher(Voucher voucher);
 
-    /**
-     * 抢购优惠券
-     * @param voucherId
-     * @return
-     */
-    Result seckillVoucher(Long voucherId);
-
-    /**
-     * 抢购优惠券[乐观锁]
-     * @param voucherId
-     * @return
-     */
-    public Result seckillVoucherOptimisticLock(Long voucherId);
-
-    /**
-     * 抢购优惠券 悲观锁
-     * @param voucherId
-     * @return
-     */
-    Result seckillVoucherPessimisticLock(Long voucherId);
-
-    /**
-     * 创建优惠券订单
-     * @param voucherId
-     * @return
-     */
-    @Transactional
-    public Result createVoucherOrder(Long voucherId);
-
-    /**
-     * redis分布式锁
-     * @param voucherId
-     * @return
-     */
-    public Result seckillVoucherRedisLock(Long voucherId) throws InterruptedException;
 }
