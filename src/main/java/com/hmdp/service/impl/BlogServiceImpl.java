@@ -205,25 +205,28 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
      */
     @Override
     public Result queryBlogFollow(Long max, Integer offset) {
+        // 1.获取当前用户id
         Long userId = UserHolder.getUser().getId();
 
+        // 2.拼接收件箱redis的key
         String key = RedisConstants.FEED_KEY + userId;
 
+        // 3.拿到收件箱里面的消息.
         Set<ZSetOperations.TypedTuple<String>> typedTuples = stringRedisTemplate.opsForZSet()
                 .reverseRangeByScoreWithScores(key, 0, max, offset, 2);
 
         if (typedTuples == null || typedTuples.isEmpty()){
             return Result.ok();
         }
-
+        // 4.解析数据：blogId、minTime（时间戳）、offset
         List<Long> ids = new ArrayList<>(typedTuples.size());
         long minTime = 0;
         int os = 1;
         for (ZSetOperations.TypedTuple<String> typedTuple : typedTuples) {
             String idStr = typedTuple.getValue();
-
+            // 4.1.获取id
             ids.add(Long.valueOf(idStr));
-
+            // 4.2.获取分数(时间戳）
             long time = typedTuple.getScore().longValue();
 
             if (time == minTime){
@@ -234,6 +237,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
                 os = 1;
             }
         }
+        // 5.根据id查询blog
         String idStr = StrUtil.join(",", ids);
         List<Blog> blogs = query().in("id", ids).last("order by field(id," + idStr + ")").list();
 
@@ -250,6 +254,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             isBlogLiked(blog);
         }
 
+        // 封装数据
         ScrollResult scrollResult = new ScrollResult();
 
         scrollResult.setList(blogs);
