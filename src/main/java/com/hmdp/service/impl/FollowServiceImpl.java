@@ -73,4 +73,13 @@ public class FollowServiceImpl extends ServiceImpl<FollowMapper, Follow> impleme
 
         return Result.ok(true);
     }
+
+    /**
+     * 共同关注
+     * @return
+     */
+    @Override
+    public Result common() {
+        return null;
+    }
 }
