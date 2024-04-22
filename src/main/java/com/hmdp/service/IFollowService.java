@@ -32,6 +32,6 @@ public interface IFollowService extends IService<Follow> {
      * 共同关注
      * @return
      */
-    Result common();
+    Result common(Long id);
 
 }

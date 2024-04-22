@@ -36,9 +36,9 @@ public class FollowController {
         return followService.followOrNotById(id);
     }
 
-    @GetMapping("/common/undefined")
-    public Result common(){
-        return followService.common();
+    @GetMapping("/common/{id}")
+    public Result common(@PathVariable("id")Long id){
+        return followService.common(id);
     }
 
 }
