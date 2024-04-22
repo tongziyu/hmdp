@@ -1,5 +1,6 @@
 package com.hmdp.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.dto.Result;
@@ -15,6 +16,7 @@ import org.redisson.api.RedissonClient;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.redis.connection.stream.*;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
@@ -22,8 +24,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.*;
 
 /**
@@ -76,10 +81,89 @@ public class SeckillVoucherServiceImpl extends ServiceImpl<SeckillVoucherMapper,
         // 提交任务
         SECKILL_ORDER_EXECUTOR.submit(new VoucherOrderHandler());
     }
-
     /**
      * 处理下单的内部类
      */
+    private class VoucherOrderHandler implements Runnable {
+        String queueName = "stream.orders";
+        @Override
+        public void run() {
+            while (true){
+                try {
+                    // 1.获取消息队列的消息
+                    List<MapRecord<String, Object, Object>> read = stringRedisTemplate.opsForStream().read(
+                            Consumer.from("g1", "c1"),
+                            StreamReadOptions.empty().count(1).block(Duration.ofSeconds(2)),
+                            StreamOffset.create(queueName, ReadOffset.lastConsumed())
+                    );
+
+                    // 2.判断消息获取是否成功
+                    if (read == null || read.isEmpty()){
+                        // 如果没有获取成功,则重新获取
+                        continue;
+                    }
+                    // 解析消息订单
+                    MapRecord<String, Object, Object> entries = read.get(0);
+                    Map<Object, Object> values = entries.getValue();
+                    VoucherOrder voucherOrder = BeanUtil.fillBeanWithMap(values,new VoucherOrder(),true);
+
+                    // 3.下单
+                    handlerVoucherOrder(voucherOrder);
+                    // 4.ACK确认
+                    stringRedisTemplate.opsForStream().acknowledge(queueName,"g1",entries.getId());
+
+
+
+                } catch (Exception e) {
+                    log.error("处理下单异常:{}",e);
+                    handlerPendingList();
+                }
+            }
+        }
+
+        /**
+         * 处理出现异常的订单
+         */
+        private void handlerPendingList(){
+            while (true){
+                try {
+                    // 1.获取消息队列的消息
+                    List<MapRecord<String, Object, Object>> read = stringRedisTemplate.opsForStream().read(
+                            Consumer.from("g1", "c1"),
+                            StreamReadOptions.empty().count(1),
+                            StreamOffset.create(queueName, ReadOffset.from("0"))
+                    );
+
+                    // 2.判断消息获取是否成功
+                    if (read == null || read.isEmpty()){
+                        // 如果没有读到说明Pending list里面没有消息,结束循环
+                        break;
+                    }
+                    // 解析消息订单
+                    MapRecord<String, Object, Object> entries = read.get(0);
+                    Map<Object, Object> values = entries.getValue();
+                    VoucherOrder voucherOrder = BeanUtil.fillBeanWithMap(values,new VoucherOrder(),true);
+
+                    // 3.下单
+                    handlerVoucherOrder(voucherOrder);
+                    // 4.ACK确认
+                    stringRedisTemplate.opsForStream().acknowledge(queueName,"g1",entries.getId());
+
+                } catch (Exception e) {
+                    log.error("处理下单异常:{}",e);
+                    try {
+                        Thread.sleep(20);
+                    } catch (InterruptedException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 处理下单的内部类
+     *//*
     private class VoucherOrderHandler implements Runnable {
         @Override
         public void run() {
@@ -94,7 +178,7 @@ public class SeckillVoucherServiceImpl extends ServiceImpl<SeckillVoucherMapper,
                 }
             }
         }
-    }
+    }*/
 
     /**
      * 处理下单的方法
@@ -479,12 +563,15 @@ public class SeckillVoucherServiceImpl extends ServiceImpl<SeckillVoucherMapper,
      * @return
      */
     public Result seckillVoucherRedisLock2(Long voucherId) throws InterruptedException {
+        Long userId = UserHolder.getUser().getId();
+        long orderId = redisIdWorker.nextId("order" + voucherId);
         // 1.执行lua脚本
         Long result = stringRedisTemplate.execute( //调用execute方法，返回值
                 SECKILL_SCRIPT, //加载的模板对象
                 Collections.emptyList(),    //键参数
                 voucherId.toString(),    //值参数1
-                UserHolder.getUser().getId().toString()    //值参数2
+                userId.toString(),//值参数2
+                String.valueOf(orderId)
         );
 
         // 2.判断返回结果,如果不是0,则不能进行秒杀
@@ -492,18 +579,6 @@ public class SeckillVoucherServiceImpl extends ServiceImpl<SeckillVoucherMapper,
         if (excuteInt != 0){
             return Result.fail(excuteInt == 1? "库存不足":"不能重复下单");
         }
-        // 3.如果是0,则表示可以进行秒杀
-        // 开启异步线程,实现下单功能
-
-        long orderId = redisIdWorker.nextId("order" + voucherId);
-
-        VoucherOrder voucherOrder = new VoucherOrder();
-        voucherOrder.setId(orderId);
-        voucherOrder.setVoucherId(voucherId);
-        voucherOrder.setUserId(UserHolder.getUser().getId());
-
-        // 将订单信息放入阻塞队列
-        orderTask.add(voucherOrder);
 
         // 开启异步线程进行下单操作.
         proxy = (SeckillVoucherServiceImpl) AopContext.currentProxy();
