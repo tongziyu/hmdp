@@ -41,4 +41,14 @@ public interface IShopService extends IService<Shop> {
      * @return
      */
     Result queryShopLogicalExpire(Long id);
+
+    /**
+     * 查询商铺分类信息,带坐标
+     * @param typeId
+     * @param current
+     * @param x
+     * @param y
+     * @return
+     */
+    Result queryShopByType(Integer typeId, Integer current, Double x, Double y);
 }
