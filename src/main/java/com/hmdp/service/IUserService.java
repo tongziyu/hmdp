@@ -38,4 +38,12 @@ public interface IUserService extends IService<User> {
      * @return
      */
     Result logout();
+
+    /**
+     * 用户签到
+     * @return
+     */
+    Result sign();
+
+    Result signCount();
 }
